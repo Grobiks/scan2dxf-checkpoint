@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scan2dxf — чек-поинт 11.11</title>
+<meta name="description" content="Промежуточные результаты команды: скан машиностроительного чертежа → редактируемый DXF">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1; --card: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8a887f;
+  --line: #e1dfd7; --grid: #ecebe5; --accent: #2a78d6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #2e7d32; --warn: #a15c00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --card: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --faint: #8f8d84;
+    --line: #33322e; --grid: #2a2926; --accent: #3987e5;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #81c784; --warn: #f0b35a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --card: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --faint: #8f8d84;
+  --line: #33322e; --grid: #2a2926; --accent: #3987e5;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #81c784; --warn: #f0b35a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 72px; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; margin: 52px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.05rem; margin: 0 0 4px; }
+p, li { max-width: 74ch; }
+.lead { color: var(--muted); font-size: 1.08rem; margin: 0 0 14px; }
+.meta { color: var(--muted); font-size: .9rem; }
+nav { position: sticky; top: 0; z-index: 5; background: var(--bg); display: flex; flex-wrap: wrap; gap: 4px 16px;
+  font-size: .93rem; padding: 10px 0; border-bottom: 1px solid var(--line); margin: 18px 0 0; }
+a { color: var(--accent); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 22px 0 6px; }
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.kpi b { display: block; font-size: 1.7rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: .88rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 14px 0; }
+.card .sub { color: var(--muted); font-size: .9rem; margin: 0 0 10px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 14px; }
+.grid2 .card { margin: 0; min-width: 0; }
+.chart { position: relative; height: 300px; width: 100%; min-width: 0; }
+.chart canvas { max-width: 100%; }
+.chart.tall { height: 360px; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: .86rem; border: 0; background: transparent; color: var(--muted);
+  padding: 5px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.chip { font: inherit; font-size: .84rem; border: 1px solid var(--line); background: transparent; color: var(--fg);
+  border-radius: 999px; padding: 3px 10px 3px 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.chip i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chip[aria-pressed="false"] { color: var(--faint); }
+.chip[aria-pressed="false"] i { opacity: .25; }
+details { margin-top: 8px; font-size: .9rem; }
+summary { cursor: pointer; color: var(--muted); }
+.table-wrap { overflow-x: auto; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.done { color: var(--good); font-weight: 600; white-space: nowrap; }
+.part { color: var(--warn); font-weight: 600; white-space: nowrap; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+.flow div { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: .88rem; }
+.flow i { color: var(--faint); font-style: normal; }
+.viewer { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; }
+@media (max-width: 760px) { .viewer { grid-template-columns: 1fr; } }
+.stage { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stage img { display: block; width: 100%; height: auto; }
+.stage img.layer { position: absolute; inset: 0; pointer-events: none; }
+.panel label { display: block; font-size: .88rem; color: var(--muted); margin: 12px 0 4px; }
+.panel input[type=range] { width: 100%; }
+.classes { display: flex; flex-wrap: wrap; gap: 6px; }
+.note { font-size: .86rem; color: var(--muted); margin-top: 10px; }
+code { font-size: .9em; }
+</style>
+</head>
+<body>
+<main>
+<h1>scan2dxf: скан чертежа → редактируемый DXF</h1>
+<p class="lead">Промежуточные результаты команды к чек-поинту 11.11.2026. Проектный практикум 3, кейс компании 44labs.</p>
+<p class="meta">Код и данные заказчика — в приватном репозитории; здесь описание, цифры из отчётов и примеры на нашей синтетике. Обновлено 10.11.2026.</p>
+<nav>
+  <a href="#task">Задача</a><a href="#done">Что сделано</a><a href="#data">Данные</a><a href="#demo">Пример</a>
+  <a href="#metrics">Метрики</a><a href="#seg">Сегментация</a><a href="#ocr">Текст и размеры</a>
+  <a href="#time">Время</a><a href="#limits">Ограничения</a><a href="#plan">План</a>
+</nav>
+
+<section id="task">
+<h2>Задача</h2>
+<p>На вход — скан, фото или PDF машиностроительного чертежа. На выход — DXF (AutoCAD 2007+), который можно редактировать: отрезки, дуги и окружности на слоях по типу линии ГОСТ 2.303, размеры сущностями DIMENSION, штриховка, надписи, масштаб листа.</p>
+<div class="flow">
+  <div>PDF / PNG / JPEG</div><i>→</i>
+  <div>рамка листа, выравнивание, бинаризация</div><i>→</i>
+  <div>сегментация 8 классов (FPN)</div><i>→</i>
+  <div>векторизация: скелет → граф → примитивы</div><i>→</i>
+  <div>OCR надписей, сборка размеров</div><i>→</i>
+  <div>DXF</div>
+</div>
+<div class="kpis">
+  <div class="kpi"><b>87–95 %</b><span>длины линий найдено в пределах 1 мм на отложенном тесте</span></div>
+  <div class="kpi"><b>87–96 %</b><span>линий с верным типом (на сканах под углом — 69 %)</span></div>
+  <div class="kpi"><b>233 из 234</b><span>листов с верно определённым форматом</span></div>
+  <div class="kpi"><b>11–17 с</b><span>на лист A4 на CPU ноутбука, 9 с на GPU</span></div>
+  <div class="kpi"><b>70 из 98</b><span>задач плана закрыто</span></div>
+</div>
+</section>
+
+<section id="done">
+<h2>Что сделано</h2>
+<div class="grid2">
+  <div class="card"><h3>Задачи по этапам</h3><p class="sub">Закрыто и открыто на 10.11 (задачи GitHub)</p><div class="chart"><canvas id="cStages"></canvas></div></div>
+  <div class="card"><h3>По блокам</h3>
+  <div class="table-wrap"><table>
+  <tr><th>Блок</th><th>Состояние</th></tr>
+  <tr><td>Данные и проверка эталонов</td><td class="done">готово</td></tr>
+  <tr><td>Метрики, сквозная оценка одной командой</td><td class="done">готово</td></tr>
+  <tr><td>Предобработка: рамка, выравнивание, бинаризация</td><td class="done">готово</td></tr>
+  <tr><td>Сегментация FPN, обучение, ONNX</td><td class="done">готово</td></tr>
+  <tr><td>Векторизация: отрезки, дуги, окружности, типы линий, штриховка</td><td class="done">готово</td></tr>
+  <tr><td>Чтение и запись DXF, конвертация в DWG</td><td class="done">готово</td></tr>
+  <tr><td>Масштаб листа</td><td class="done">готово</td></tr>
+  <tr><td>OCR, разбор допусков, сборка размеров</td><td class="part">частично</td></tr>
+  <tr><td>Основная надпись, размещение текста в DXF</td><td class="part">на ревью</td></tr>
+  <tr><td>Веб, пакетная обработка, Docker</td><td class="done">готово</td></tr>
+  <tr><td>Офлайн-комплект, итоговая оценка</td><td class="part">этап 4</td></tr>
+  </table></div></div>
+</div>
+</section>
+
+<section id="data">
+<h2>Данные</h2>
+<p>666 реальных пар «растр + DXF» от заказчика, 25 деталей стороннего вуза, 31 скан и 78 фото распечаток, 150 листов своей синтетики. Разбиение train / val / test без утечек: одно изделие, документ и дубли — в одной части.</p>
+<div class="grid2">
+  <div class="card"><h3>Пары по партиям</h3><p class="sub">Сколько листов «растр + DXF» в каждой партии</p><div class="chart"><canvas id="cBatches"></canvas></div></div>
+  <div class="card"><h3>Проверка эталонов</h3><p class="sub">Каждый DXF сверен со своим растром после совмещения</p><div class="chart"><canvas id="cVerify"></canvas></div>
+  <p class="note">Исключено 5: нет растра, чужой DXF, далёкий объект. Разбиение: train 470 / val 89 / test 127.</p></div>
+</div>
+</section>
+
+<section id="demo">
+<h2>Пример: синтетический лист</h2>
+<p>Наш генератор: неровная бумага, наклон, пятна. Слева — что увидела нейросеть: можно включать классы и менять прозрачность. Реальные чертежи заказчика здесь не публикуются.</p>
+<div class="card viewer">
+  <div class="stage" id="stage">
+    <img id="vBase" alt="Лист" src="img/viewer/003_clean.jpg" width="1100" height="1555">
+  </div>
+  <div class="panel">
+    <label>Лист</label>
+    <div class="seg" id="vSheet"><button aria-pressed="true" data-v="003">кронштейн</button><button aria-pressed="false" data-v="017">с пятном</button></div>
+    <label>Что показать</label>
+    <div class="seg" id="vView"><button aria-pressed="false" data-v="scan">скан</button><button aria-pressed="true" data-v="masks">классы</button><button aria-pressed="false" data-v="dxf">DXF</button></div>
+    <div id="vMaskCtl">
+      <label for="vAlpha">Прозрачность масок: <span id="vAlphaV">80</span> %</label>
+      <input id="vAlpha" type="range" min="0" max="100" value="80">
+      <label>Классы</label>
+      <div class="classes" id="vClasses"></div>
+    </div>
+    <p class="note" id="vNote"></p>
+  </div>
+</div>
+</section>
+
+<section id="metrics">
+<h2>Метрики пайплайна</h2>
+<p>Весь пайплайн против эталонного DXF, допуск 1 мм, конфигурация по умолчанию. Метод выбирался на <code>real-val</code>, здесь — отложенный <code>real-test</code>.</p>
+<div class="card">
+  <div class="controls"><div class="seg" id="mSel">
+    <button aria-pressed="true" data-v="cov">покрытие длины</button>
+    <button aria-pressed="false" data-v="type">тип линии</button>
+    <button aria-pressed="false" data-v="crit">критические</button>
+    <button aria-pressed="false" data-v="ends">F1 по концам</button>
+  </div></div>
+  <p class="sub" id="mSub"></p>
+  <div class="chart"><canvas id="cTest"></canvas></div>
+  <details><summary>Таблица</summary><div class="table-wrap"><table>
+  <tr><th>Вход</th><th>Листов</th><th>Покрытие</th><th>F1 по концам</th><th>Тип линии</th><th>Критических на 100</th><th>Формат</th></tr>
+  <tr><td>PDF</td><td class="n">56</td><td class="n">0,95</td><td class="n">0,35</td><td class="n">93 %</td><td class="n">0,7</td><td class="n">56 из 56</td></tr>
+  <tr><td>растр JPEG</td><td class="n">122</td><td class="n">0,92</td><td class="n">0,35</td><td class="n">89 %</td><td class="n">1,4</td><td class="n">120 из 121</td></tr>
+  <tr><td>«состаренный» растр</td><td class="n">26</td><td class="n">0,95</td><td class="n">0,43</td><td class="n">87 %</td><td class="n">1,1</td><td class="n">26 из 26</td></tr>
+  <tr><td>скан, мятый лист</td><td class="n">11</td><td class="n">0,94</td><td class="n">0,31</td><td class="n">96 %</td><td class="n">0,0</td><td class="n">11 из 11</td></tr>
+  <tr><td>скан под углом</td><td class="n">20</td><td class="n">0,87</td><td class="n">0,30</td><td class="n">69 %</td><td class="n">1,6</td><td class="n">20 из 20</td></tr>
+  </table></div></details>
+</div>
+<div class="card">
+  <h3>Как пришли к конфигурации по умолчанию</h3>
+  <p class="sub">Доля линий с верным типом: обычный растр и сканы под углом. Нейросеть убрала путаницу текста и размерных с контуром, обучение с масштабом тайла вдвое подняло сканы под углом.</p>
+  <div class="chart"><canvas id="cEvolution"></canvas></div>
+  <p class="note">Покрытие длины на JPEG / PDF: скелет без нейросети 0,84 / 0,88, со всеми нейросетями 0,92 / 0,95. Базовое решение HoughLinesP — на 0,02–0,09 ниже скелета.</p>
+</div>
+</section>
+
+<section id="seg">
+<h2>Сегментация</h2>
+<p>FPN + ResNet34 в ONNX, лист целиком тайлами, обучение на 469 реальных листах (Kaggle, T4). Метрика — F1 масок с допуском 2 px: линия толщиной 2 px, сдвиг на пиксель обнулил бы IoU.</p>
+<div class="grid2">
+  <div class="card"><h3>F1 масок по классам</h3><p class="sub">FPN 0.2.0, 89 листов val целиком</p><div class="chart"><canvas id="cClasses"></canvas></div>
+  <p class="note">Штриховые нейросеть почти не находит (0,11) — их находит разбор рисунка разрывов вдоль линии: 7 из 7 на val.</p></div>
+  <div class="card"><h3>Кривая обучения</h3><p class="sub">Первое обучение U-Net (03.11), F1 по эпохам. Нажмите на класс, чтобы скрыть его</p>
+  <div class="controls classes" id="epChips"></div>
+  <div class="chart"><canvas id="cEpochs"></canvas></div></div>
+</div>
+</section>
+
+<section id="ocr">
+<h2>Текст и размеры</h2>
+<div class="grid2">
+  <div class="card"><h3>Выбор OCR</h3><p class="sub">113 листов, 1582 размера и 197 полей штампа. Справа вверху — лучше и быстрее</p>
+  <div class="controls"><div class="seg" id="oSel"><button aria-pressed="true" data-v="dims">размеры</button><button aria-pressed="false" data-v="stamp">штамп</button></div></div>
+  <div class="chart"><canvas id="cOcr"></canvas></div>
+  <p class="note">Выбран RapidOCR с правилами для Ø и °: лучший по размерам, 6 с на лист на CPU, Apache-2.0.</p></div>
+  <div class="card"><h3>Второй распознаватель для трудных надписей</h3><p class="sub">100 вырезок размеров, точное совпадение</p>
+  <div class="chart"><canvas id="cVlm"></canvas></div>
+  <p class="note">Qwen3-VL-4B не лучше Xiaomi-OCR-0 при модели в 5 раз больше — для допусков и посадок берём Xiaomi на этапе 3.</p></div>
+</div>
+<div class="card"><h3>Где теряются размеры</h3><p class="sub">14 листов val, 131 прямой размер: доля размеров, дошедших до шага</p>
+  <div class="chart"><canvas id="cFunnel"></canvas></div>
+  <p class="note">Главная потеря — пара стрелок у размерной линии: после исправления поиска стрелок у толстых линий (09.11) собрано вдвое больше, точность 75 → 86 %. Дальше — сборка без обязательной пары стрелок, диаметры и радиусы.</p>
+</div>
+</section>
+
+<section id="time">
+<h2>Время на лист</h2>
+<div class="card">
+  <div class="controls"><div class="seg" id="tSel"><button aria-pressed="true" data-v="log">лог. шкала</button><button aria-pressed="false" data-v="lin">линейная</button></div></div>
+  <p class="sub">Медианы на 36 листах; CPU — ноутбук Ryzen 5 4500U (6 ядер, 8 ГБ), GPU — Tesla T4. Пунктир — ориентир ТЗ, 10 минут</p>
+  <div class="chart tall"><canvas id="cTime"></canvas></div>
+  <p class="note">A4–A2 укладываются с запасом, A1 — на границе, A0 — нет. 70–97 % времени больших листов — векторизация на CPU, её ускорение — в плане.</p>
+</div>
+</section>
+
+<section id="limits">
+<h2>Что пока не получилось</h2>
+<ul>
+<li>Фото распечаток: рамка находится на 11 из 78 фото — нужна работа с изгибом и перспективой.</li>
+<li>Сканы под углом: тип линии верен у 69 % против 87–96 % на остальных входах.</li>
+<li>Размеры: собирается от 20 % до трети; радиусы и диаметры по окружности — в работе.</li>
+<li>Концы скруглений не всегда в точках касания; лист A0 обрабатывается дольше ориентира.</li>
+</ul>
+</section>
+
+<section id="plan">
+<h2>План до защиты (середина декабря)</h2>
+<ol>
+<li>Текст и OCR: полнота размеров, поля основной надписи, размещение надписей в DXF, второй распознаватель для допусков.</li>
+<li>Привязка размеров к геометрии и решатель ограничений; знаки шероховатости и допусков, виды и сечения.</li>
+<li>Фото и сканы под углом, концы скруглений, штриховые нейросетью.</li>
+<li>Офлайн-комплект для CPU и GPU, итоговые метрики и экспертная оценка.</li>
+</ol>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(() => {
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const S = i => css('--s' + i);
+  const fmt = (v, d = 2) => Number(v).toLocaleString('ru-RU', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+  const CLS = [
+    ['MAIN', 'основная', 1], ['THIN', 'тонкая', 3], ['HIDDEN', 'штриховая', 2], ['AXIS', 'осевая', 8],
+    ['DIMS', 'размерная', 6], ['HATCH', 'штриховка', 7], ['SYMBOL', 'знаки', 5], ['TEXT', 'текст', 4]];
+  const charts = {};
+  const builders = [];
+  function base(extra = {}) {
+    return {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { display: false, labels: { color: css('--muted'), boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'rectRounded' } },
+        tooltip: { backgroundColor: css('--card'), titleColor: css('--fg'), bodyColor: css('--fg'),
+          borderColor: css('--line'), borderWidth: 1, padding: 10, cornerRadius: 6, boxPadding: 4 }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: css('--muted') }, border: { color: css('--line') } },
+        y: { grid: { color: css('--grid') }, ticks: { color: css('--muted') }, border: { display: false } }
+      }, ...extra
+    };
+  }
+  function make(id, build) {
+    const el = document.getElementById(id);
+    const b = () => { const c = new Chart(el, build()); charts[id] = c; return c; };
+    builders.push([id, b]); return b();
+  }
+  function rebuildAll() {
+    for (const [id, b] of builders) { charts[id].destroy(); b(); }
+  }
+  const bar = { borderRadius: 4, borderSkipped: 'start', maxBarThickness: 46 };
+
+  // этапы
+  make('cStages', () => ({
+    type: 'bar',
+    data: { labels: ['0. Фундамент', '1. Данные и метрики', '2. Геометрия', '3. Размеры, знаки, текст', '4. Поставка'],
+      datasets: [
+        { label: 'закрыто', data: [6, 22, 24, 11, 5], backgroundColor: S(1), ...bar, borderSkipped: false },
+        { label: 'открыто', data: [0, 1, 3, 17, 7], backgroundColor: css('--line'), ...bar, borderSkipped: false }] },
+    options: base({ indexAxis: 'y',
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' } },
+      scales: { x: { stacked: true, grid: { color: css('--grid') }, ticks: { color: css('--muted') }, border: { display: false } },
+        y: { stacked: true, grid: { display: false }, ticks: { color: css('--muted') } } } })
+  }));
+
+  // партии
+  make('cBatches', () => ({
+    type: 'bar',
+    data: { labels: ['AutoCAD, партия 7', 'AutoCAD, партия 8', 'детали, партия 2', 'детали, партия 3', 'изделие, партия 5', 'вуз (только тест)', 'болт, партия 4', 'эталоны', 'детали, партия 6'],
+      datasets: [{ label: 'пар', data: [288, 189, 72, 52, 44, 25, 11, 5, 5], backgroundColor: S(1), ...bar }] },
+    options: base({ indexAxis: 'y',
+      scales: { x: { grid: { color: css('--grid') }, ticks: { color: css('--muted') }, border: { display: false } },
+        y: { grid: { display: false }, ticks: { color: css('--muted') } } } })
+  }));
+
+  make('cVerify', () => ({
+    type: 'doughnut',
+    data: { labels: ['годны', 'чужой или неверный DXF', 'пустой PDF'],
+      datasets: [{ data: [661, 4, 1], backgroundColor: [S(1), S(2), css('--faint')], borderColor: css('--card'), borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { position: 'right', labels: { color: css('--muted'), boxWidth: 10, usePointStyle: true } },
+        tooltip: base().plugins.tooltip } }
+  }));
+
+  // real-test
+  const kinds = ['PDF', 'растр JPEG', '«состаренный»', 'скан, мятый', 'скан под углом'];
+  const M = {
+    cov: { d: [0.95, 0.92, 0.95, 0.94, 0.87], t: 'Доля длины линий эталона, найденная в пределах 1 мм', max: 1, f: v => fmt(v) },
+    type: { d: [93, 89, 87, 96, 69], t: 'Доля линий с верным типом (основная, тонкая, штриховая, осевая), %', max: 100, f: v => v + ' %' },
+    crit: { d: [0.7, 1.4, 1.1, 0.0, 1.6], t: 'Подмены, меняющие деталь (размерная или осевая ↔ контур), на 100 линий — меньше лучше', max: 2, f: v => fmt(v, 1) },
+    ends: { d: [0.35, 0.35, 0.43, 0.31, 0.30], t: 'F1 по концам примитивов: ниже покрытия, потому что линия часто приходит несколькими кусками', max: 1, f: v => fmt(v) }
+  };
+  let mKey = 'cov';
+  const testChart = () => ({
+    type: 'bar',
+    data: { labels: kinds, datasets: [{ label: mKey, data: M[mKey].d, backgroundColor: kinds.map((_, i) => i === 4 ? S(2) : S(1)), ...bar }] },
+    options: base({
+      plugins: { ...base().plugins, tooltip: { ...base().plugins.tooltip, callbacks: { label: c => M[mKey].f(c.raw) } } },
+      scales: { x: base().scales.x, y: { ...base().scales.y, min: 0, max: M[mKey].max } } })
+  });
+  make('cTest', testChart);
+  const mSub = document.getElementById('mSub'); mSub.textContent = M[mKey].t;
+  seg('mSel', v => { mKey = v; mSub.textContent = M[v].t; charts.cTest.destroy(); charts.cTest = new Chart(document.getElementById('cTest'), testChart()); });
+
+  make('cEvolution', () => ({
+    type: 'bar',
+    data: { labels: ['скелет, тип по растру', '+ U-Net, тип из масок', 'FPN 0.1.0', 'FPN 0.2.0 + штриховые'],
+      datasets: [
+        { label: 'растр JPEG', data: [87, 88, 91, 89], backgroundColor: S(1), ...bar },
+        { label: 'скан под углом', data: [88, 40, 34, 69], backgroundColor: S(2), ...bar }] },
+    options: base({
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' },
+        tooltip: { ...base().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + c.raw + ' %' } } },
+      scales: { x: base().scales.x, y: { ...base().scales.y, min: 0, max: 100, ticks: { color: css('--muted'), callback: v => v + ' %' } } } })
+  }));
+
+  // сегментация по классам
+  const f1 = { MAIN: 0.96, TEXT: 0.98, HATCH: 0.93, AXIS: 0.88, DIMS: 0.87, SYMBOL: 0.79, THIN: 0.75, HIDDEN: 0.11 };
+  const order = ['TEXT', 'MAIN', 'HATCH', 'AXIS', 'DIMS', 'SYMBOL', 'THIN', 'HIDDEN'];
+  const nm = Object.fromEntries(CLS.map(c => [c[0], c[1]]));
+  const sl = Object.fromEntries(CLS.map(c => [c[0], c[2]]));
+  make('cClasses', () => ({
+    type: 'bar',
+    data: { labels: order.map(k => nm[k]), datasets: [{ data: order.map(k => f1[k]), backgroundColor: order.map(k => S(sl[k])), ...bar }] },
+    options: base({
+      plugins: { ...base().plugins, tooltip: { ...base().plugins.tooltip, callbacks: { label: c => 'F1 ' + fmt(c.raw) } } },
+      scales: { x: base().scales.x, y: { ...base().scales.y, min: 0, max: 1 } } })
+  }));
+
+  // кривая обучения
+  const ep = [1, 3, 5, 7, 10, 13, 15, 17, 20, 25, 28, 30];
+  const E = {
+    MAIN: [.76, .92, .95, .95, .96, .95, .96, .96, .96, .96, .96, .97], THIN: [.25, .32, .49, .60, .59, .54, .61, .64, .63, .64, .65, .62],
+    HIDDEN: [0, 0, 0, .11, 0, 0, 0, 0, 0, 0, 0, 0], AXIS: [.03, .16, .63, .74, .41, .20, .78, .75, .79, .80, .81, .81],
+    DIMS: [.37, .69, .73, .75, .82, .81, .84, .84, .87, .88, .88, .88], HATCH: [.17, .65, .78, .86, .75, .88, .90, .92, .94, .94, .94, .94],
+    SYMBOL: [.17, .17, .31, .39, .51, .60, .67, .69, .74, .76, .76, .75], TEXT: [.84, .95, .98, .97, .97, .97, .98, .98, .98, .98, .98, .98] };
+  const hidden = new Set(['HIDDEN']);
+  const chipsBox = document.getElementById('epChips');
+  for (const [k, n, s] of CLS) {
+    const b = document.createElement('button'); b.className = 'chip'; b.type = 'button';
+    b.setAttribute('aria-pressed', String(!hidden.has(k))); b.innerHTML = `<i style="background:var(--s${s})"></i>${n}`;
+    b.onclick = () => { hidden.has(k) ? hidden.delete(k) : hidden.add(k); b.setAttribute('aria-pressed', String(!hidden.has(k)));
+      const ds = charts.cEpochs.data.datasets.find(d => d.key === k); ds.hidden = hidden.has(k); charts.cEpochs.update(); };
+    chipsBox.appendChild(b);
+  }
+  make('cEpochs', () => ({
+    type: 'line',
+    data: { labels: ep, datasets: CLS.map(([k, n, s]) => ({ key: k, label: n, data: E[k], borderColor: S(s), backgroundColor: S(s),
+      borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25, hidden: hidden.has(k) })) },
+    options: base({ interaction: { mode: 'index', intersect: false },
+      plugins: { ...base().plugins, tooltip: { ...base().plugins.tooltip, callbacks: { title: c => 'эпоха ' + c[0].label, label: c => c.dataset.label + ': ' + fmt(c.raw) } } },
+      scales: { x: { ...base().scales.x, title: { display: true, text: 'эпоха', color: css('--muted') } }, y: { ...base().scales.y, min: 0, max: 1 } } })
+  }));
+
+  // OCR
+  const OCR = [
+    ['RapidOCR + правила Ø и °', 74, 72, 6, true], ['RapidOCR', 61, 72, 6], ['RapidOCR, PP-OCRv6', 64, 22, 9],
+    ['PaddleOCR 3', 60, 71, 29], ['EasyOCR', 44, 30, 73], ['Tesseract 5', 30, 57, 4], ['PaddleOCR-VL (GPU)', 70, 9, 1680]];
+  let oKey = 'dims';
+  const pointNames = { id: 'pointNames', afterDatasetsDraw(c) {
+    const g = c.ctx; g.save(); g.font = '11px system-ui'; g.fillStyle = css('--muted');
+    c.data.datasets.forEach((ds, i) => {
+      const pt = c.getDatasetMeta(i).data[0]; if (!pt) return;
+      const right = pt.x > c.chartArea.left + c.chartArea.width * 0.6;
+      g.textAlign = right ? 'right' : 'left';
+      g.fillText(ds.label, pt.x + (right ? -10 : 10), pt.y + 4);
+    }); g.restore(); } };
+  const ocrChart = () => ({
+    type: 'scatter', plugins: [pointNames],
+    data: { datasets: OCR.map(([n, d, st, t, chosen]) => ({ label: n, data: [{ x: t, y: oKey === 'dims' ? d : st }],
+      backgroundColor: chosen ? S(1) : css('--faint'), borderColor: css('--card'), borderWidth: 2, pointRadius: chosen ? 8 : 6, pointHoverRadius: 9 })) },
+    options: base({ interaction: { mode: 'nearest', intersect: true },
+      plugins: { ...base().plugins, tooltip: { ...base().plugins.tooltip, callbacks: { label: c => `${c.dataset.label}: ${c.raw.y} %, ${fmt(c.raw.x, 0)} с на лист` } } },
+      scales: { x: { type: 'logarithmic', reverse: true, grid: { color: css('--grid') }, ticks: { color: css('--muted'), callback: v => [1, 3, 10, 30, 100, 300, 1000, 3000].includes(v) ? v + ' с' : '' },
+          title: { display: true, text: 'секунд на лист (быстрее →)', color: css('--muted') }, border: { display: false } },
+        y: { ...base().scales.y, min: 0, max: 100, ticks: { color: css('--muted'), callback: v => v + ' %' },
+          title: { display: true, text: oKey === 'dims' ? 'размеры прочитаны точно' : 'поля штампа найдены', color: css('--muted') } } } })
+  });
+  make('cOcr', ocrChart);
+  seg('oSel', v => { oKey = v; charts.cOcr.destroy(); charts.cOcr = new Chart(document.getElementById('cOcr'), ocrChart()); });
+
+  make('cVlm', () => ({
+    type: 'bar',
+    data: { labels: ['все (100)', 'допуски, посадки, резьбы (50)', 'простые (50)'],
+      datasets: [
+        { label: 'Xiaomi-OCR-0, 0,8B', data: [84, 82, 86], backgroundColor: S(1), ...bar },
+        { label: 'Qwen3-VL-4B + текст OCR', data: [85, 84, 86], backgroundColor: S(7), ...bar },
+        { label: 'RapidOCR', data: [68, 56, 80], backgroundColor: css('--faint'), ...bar }] },
+    options: base({
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' },
+        tooltip: { ...base().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + c.raw + ' %' } } },
+      scales: { x: base().scales.x, y: { ...base().scales.y, min: 0, max: 100, ticks: { color: css('--muted'), callback: v => v + ' %' } } } })
+  }));
+
+  make('cFunnel', () => ({
+    type: 'bar',
+    data: { labels: ['надпись найдена OCR', 'число прочитано верно', 'размер собран'],
+      datasets: [
+        { label: 'до 09.11', data: [69, 63, 16], backgroundColor: css('--faint'), ...bar },
+        { label: 'после исправления стрелок', data: [69, 63, 32], backgroundColor: S(1), ...bar }] },
+    options: base({ indexAxis: 'y',
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' },
+        tooltip: { ...base().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + c.raw + ' %' } } },
+      scales: { x: { min: 0, max: 100, grid: { color: css('--grid') }, ticks: { color: css('--muted'), callback: v => v + ' %' }, border: { display: false } },
+        y: { grid: { display: false }, ticks: { color: css('--muted') } } } })
+  }));
+
+  // время
+  const fmts = ['A4', 'A3', 'A2', 'A1', 'A0'];
+  const T = [
+    ['CPU, без OCR', [14, 36, 210, 480, 960], ['11–17 с', '30–42 с', '3–4 мин', '8 мин', '16 мин'], 1],
+    ['GPU, без OCR', [9, 21, 60, 480, 810], ['9 с', '21 с', '1 мин', '8 мин', '13,5 мин'], 3],
+    ['GPU, с OCR', [12, 24, 108, 564, 924], ['12 с', '24 с', '1,8 мин', '9,4 мин', '15,4 мин'], 7]];
+  let tKey = 'log';
+  const limit = { id: 'limit', afterDatasetsDraw(c) {
+    const y = c.scales.y.getPixelForValue(600), { left, right } = c.chartArea, g = c.ctx;
+    g.save(); g.setLineDash([5, 4]); g.strokeStyle = css('--muted'); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(left, y); g.lineTo(right, y); g.stroke();
+    g.setLineDash([]); g.fillStyle = css('--muted'); g.font = '12px system-ui'; g.fillText('10 мин — ориентир ТЗ', left + 6, y - 6); g.restore(); } };
+  const timeChart = () => ({
+    type: 'line', plugins: [limit],
+    data: { labels: fmts, datasets: T.map(([n, d, l, s]) => ({ label: n, data: d, txt: l, borderColor: S(s), backgroundColor: S(s),
+      borderWidth: 2, pointRadius: 4, pointHoverRadius: 7, pointBorderColor: css('--card'), pointBorderWidth: 2 })) },
+    options: base({ interaction: { mode: 'index', intersect: false },
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' },
+        tooltip: { ...base().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + c.dataset.txt[c.dataIndex] } } },
+      scales: { x: base().scales.x,
+        y: tKey === 'log'
+          ? { type: 'logarithmic', min: 5, max: 1500, grid: { color: css('--grid') }, border: { display: false },
+              ticks: { color: css('--muted'), callback: v => ({ 10: '10 с', 30: '30 с', 60: '1 мин', 300: '5 мин', 600: '10 мин', 1200: '20 мин' })[v] || '' } }
+          : { min: 0, max: 1000, grid: { color: css('--grid') }, border: { display: false },
+              ticks: { color: css('--muted'), stepSize: 120, callback: v => (v / 60) + ' мин' } } } })
+  });
+  make('cTime', timeChart);
+  seg('tSel', v => { tKey = v; charts.cTime.destroy(); charts.cTime = new Chart(document.getElementById('cTime'), timeChart()); });
+
+  // сегментированные переключатели
+  function seg(id, on) {
+    const box = document.getElementById(id);
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      on(b.dataset.v);
+    }));
+  }
+
+  // просмотрщик
+  const stage = document.getElementById('stage'), baseImg = document.getElementById('vBase');
+  const alpha = document.getElementById('vAlpha'), alphaV = document.getElementById('vAlphaV');
+  const note = document.getElementById('vNote'), maskCtl = document.getElementById('vMaskCtl');
+  const on = new Set(CLS.map(c => c[0]));
+  let sheet = '003', view = 'masks';
+  const NOTES = {
+    '003': 'Кронштейн: контур, отверстия, осевая и штриховая линии, размеры, знаки шероховатости и основная надпись переходят в DXF.',
+    '017': 'Лист с крупным пятном: деталь и штамп читаются, но край пятна частично попал в DXF ложными линиями, штриховка узкой детали записана неточно.'
+  };
+  const layers = {};
+  for (const [k] of CLS) {
+    const im = document.createElement('img'); im.className = 'layer'; im.alt = ''; layers[k] = im; stage.appendChild(im);
+  }
+  const box = document.getElementById('vClasses');
+  for (const [k, n, s] of CLS) {
+    const b = document.createElement('button'); b.className = 'chip'; b.type = 'button'; b.setAttribute('aria-pressed', 'true');
+    b.innerHTML = `<i style="background:var(--s${s})"></i>${n}`;
+    b.onclick = () => { on.has(k) ? on.delete(k) : on.add(k); b.setAttribute('aria-pressed', String(on.has(k))); draw(); };
+    box.appendChild(b);
+  }
+  function draw() {
+    const masks = view === 'masks';
+    baseImg.src = `img/viewer/${sheet}_${masks ? 'clean' : view}.jpg`;
+    baseImg.style.opacity = masks ? 0.55 : 1;
+    for (const [k] of CLS) {
+      const im = layers[k];
+      if (masks) { im.src = `img/viewer/${sheet}_${k}.png`; im.style.display = on.has(k) ? 'block' : 'none'; im.style.opacity = alpha.value / 100; }
+      else im.style.display = 'none';
+    }
+    maskCtl.style.display = masks ? '' : 'none';
+    note.textContent = NOTES[sheet];
+  }
+  alpha.addEventListener('input', () => { alphaV.textContent = alpha.value; draw(); });
+  seg('vSheet', v => { sheet = v; draw(); });
+  seg('vView', v => { view = v; draw(); });
+  draw();
+
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rebuildAll);
+})();
+</script>
+</body>
+</html>
