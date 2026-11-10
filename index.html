@@ -94,12 +94,12 @@ code { font-size: .9em; }
 <body>
 <main>
 <h1>scan2dxf: скан чертежа → редактируемый DXF</h1>
-<p class="lead">Промежуточные результаты команды к чек-поинту 11.11.2026. Проектный практикум 3, кейс компании 44labs.</p>
+<p class="lead">Промежуточные результаты команды «Колупатели кальки» к чек-поинту 11.11.2026. Проектный практикум 3, кейс компании 44labs.</p>
 <p class="meta">Код и данные заказчика — в приватном репозитории; здесь описание, цифры из отчётов и примеры на нашей синтетике. Обновлено 10.11.2026.</p>
 <nav>
   <a href="#task">Задача</a><a href="#done">Что сделано</a><a href="#data">Данные</a><a href="#demo">Пример</a>
   <a href="#metrics">Метрики</a><a href="#seg">Сегментация</a><a href="#ocr">Текст и размеры</a>
-  <a href="#time">Время</a><a href="#limits">Ограничения</a><a href="#plan">План</a>
+  <a href="#train">Обучение</a><a href="#time">Время</a><a href="#tasks">Задачи</a><a href="#limits">Ограничения</a><a href="#plan">План</a>
 </nav>
 
 <section id="task">
@@ -119,6 +119,14 @@ code { font-size: .9em; }
   <div class="kpi"><b>233 из 234</b><span>листов с верно определённым форматом</span></div>
   <div class="kpi"><b>11–17 с</b><span>на лист A4 на CPU ноутбука, 9 с на GPU</span></div>
   <div class="kpi"><b>70 из 98</b><span>задач плана закрыто</span></div>
+</div>
+<div class="kpis">
+  <div class="kpi"><b>155</b><span>принятых pull request за 4 недели (с 14.10)</span></div>
+  <div class="kpi"><b>17</b><span>отчётов об экспериментах</span></div>
+  <div class="kpi"><b>~23 ч</b><span>GPU на обучение: 19 прогонов сегментации на Kaggle и первое обучение в Colab</span></div>
+  <div class="kpi"><b>20,8 тыс.</b><span>строк кода на Python, более 700 автотестов</span></div>
+  <div class="kpi"><b>666</b><span>реальных пар «растр + DXF», 1582 размера в разметке OCR</span></div>
+  <div class="kpi"><b>7 / 5 / 3</b><span>сравнено систем OCR / декодеров сегментации / локальных VLM</span></div>
 </div>
 </section>
 
@@ -155,17 +163,21 @@ code { font-size: .9em; }
 </section>
 
 <section id="demo">
-<h2>Пример: синтетический лист</h2>
-<p>Наш генератор: неровная бумага, наклон, пятна. Слева — что увидела нейросеть: можно включать классы и менять прозрачность. Реальные чертежи заказчика здесь не публикуются.</p>
+<h2>Как лист проходит пайплайн</h2>
+<p>Лист нашего генератора синтетики (неровная бумага, наклон, пятна) по этапам — переключайте этап ползунком или кнопками. Реальные чертежи заказчика здесь не публикуются; цифры качества — по реальным листам, в разделе «Метрики».</p>
 <div class="card viewer">
   <div class="stage" id="stage">
     <img id="vBase" alt="Лист" src="img/viewer/003_clean.jpg" width="1100" height="1555">
   </div>
   <div class="panel">
     <label>Лист</label>
-    <div class="seg" id="vSheet"><button aria-pressed="true" data-v="003">кронштейн</button><button aria-pressed="false" data-v="017">с пятном</button></div>
-    <label>Что показать</label>
-    <div class="seg" id="vView"><button aria-pressed="false" data-v="scan">скан</button><button aria-pressed="true" data-v="masks">классы</button><button aria-pressed="false" data-v="dxf">DXF</button></div>
+    <div class="seg" id="vSheet"><button aria-pressed="true" data-v="003">кронштейн, A3</button><button aria-pressed="false" data-v="017">с пятном, A4</button></div>
+    <label for="vStep">Этап: <b id="vStepName"></b></label>
+    <input id="vStep" type="range" min="1" max="5" value="3" step="1">
+    <div class="seg" id="vView" style="flex-wrap:wrap">
+      <button aria-pressed="false" data-v="1">1</button><button aria-pressed="false" data-v="2">2</button><button aria-pressed="true" data-v="3">3</button><button aria-pressed="false" data-v="4">4</button><button aria-pressed="false" data-v="5">5</button>
+    </div>
+    <p class="note" id="vStepText"></p>
     <div id="vMaskCtl">
       <label for="vAlpha">Прозрачность масок: <span id="vAlphaV">80</span> %</label>
       <input id="vAlpha" type="range" min="0" max="100" value="80">
@@ -218,6 +230,22 @@ code { font-size: .9em; }
 </div>
 </section>
 
+<section id="train">
+<h2>Обучение</h2>
+<p>Сегментацию обучали на Kaggle (2 × Tesla T4): 19 прогонов по 20 эпох, каждый 50–92 минуты — около 20 часов GPU. Первое обучение U-Net — в Colab (T4): 30 эпох по 5 минут, около 2,5 часа. Лимит Kaggle — 30 ч GPU в неделю, поэтому прогоны шли парами.</p>
+<div class="kpis">
+  <div class="kpi"><b>19</b><span>прогонов сегментации на Kaggle</span></div>
+  <div class="kpi"><b>~20 ч</b><span>GPU Kaggle (2 × T4), 50–92 мин на прогон</span></div>
+  <div class="kpi"><b>~2,5 ч</b><span>первое обучение U-Net в Colab, 30 эпох</span></div>
+  <div class="kpi"><b>469</b><span>реальных листов в обучении, тайл 512, 20 эпох</span></div>
+</div>
+<div class="card"><h3>Прогоны: качество и время</h3><p class="sub">17 прогонов, у которых записано время: F1 масок на val и минуты обучения. Наведите на столбец — точные значения</p>
+  <div class="controls"><div class="seg" id="rSel"><button aria-pressed="true" data-v="f1">F1 масок</button><button aria-pressed="false" data-v="min">минуты</button></div></div>
+  <div class="chart tall"><canvas id="cRuns"></canvas></div>
+  <p class="note">Выбран FPN с масштабом тайла 0,8–1,05 (отмечен): F1 0,767 и вдвое лучше на сканах под углом. U-Net++ в 1,6 раза дольше ради +0,002; DeepLabV3+ с растрами заказчика даёт F1 0,781, но больше критических подмен на всём пайплайне.</p>
+</div>
+</section>
+
 <section id="ocr">
 <h2>Текст и размеры</h2>
 <div class="grid2">
@@ -242,6 +270,21 @@ code { font-size: .9em; }
   <p class="sub">Медианы на 36 листах; CPU — ноутбук Ryzen 5 4500U (6 ядер, 8 ГБ), GPU — Tesla T4. Пунктир — ориентир ТЗ, 10 минут</p>
   <div class="chart tall"><canvas id="cTime"></canvas></div>
   <p class="note">A4–A2 укладываются с запасом, A1 — на границе, A0 — нет. 70–97 % времени больших листов — векторизация на CPU, её ускорение — в плане.</p>
+</div>
+</section>
+
+<section id="tasks">
+<h2>Задачи</h2>
+<p>План ведётся задачами GitHub по пяти этапам. Номер в скобках — пункт плана.</p>
+<div class="card"><h3>Заведено и закрыто</h3><p class="sub">Нарастающим итогом с 14.10</p><div class="chart"><canvas id="cBurn"></canvas></div></div>
+<div class="card">
+  <div class="controls">
+    <div class="seg" id="tkStage"><button aria-pressed="true" data-v="all">все этапы</button><button aria-pressed="false" data-v="0">0</button><button aria-pressed="false" data-v="1">1</button><button aria-pressed="false" data-v="2">2</button><button aria-pressed="false" data-v="3">3</button><button aria-pressed="false" data-v="4">4</button></div>
+    <div class="seg" id="tkState"><button aria-pressed="true" data-v="all">все</button><button aria-pressed="false" data-v="1">закрыто</button><button aria-pressed="false" data-v="0">открыто</button></div>
+    <input id="tkQ" type="search" placeholder="поиск" aria-label="Поиск по задачам" style="font:inherit;font-size:.88rem;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);min-width:0;flex:1 1 140px">
+  </div>
+  <p class="sub" id="tkCount"></p>
+  <div class="table-wrap" style="max-height:520px;overflow:auto"><table id="tkTable"><thead><tr><th>№</th><th>Задача</th><th>Этап</th><th>Статус</th></tr></thead><tbody></tbody></table></div>
 </div>
 </section>
 
@@ -500,10 +543,17 @@ code { font-size: .9em; }
   const alpha = document.getElementById('vAlpha'), alphaV = document.getElementById('vAlphaV');
   const note = document.getElementById('vNote'), maskCtl = document.getElementById('vMaskCtl');
   const on = new Set(CLS.map(c => c[0]));
-  let sheet = '003', view = 'masks';
+  let sheet = '003', step = 3;
+  const STEPS = {
+    1: ['скан', 'scan', 'Вход: растр со сдвигом, наклоном и неровной бумагой.'],
+    2: ['выравнивание', 'clean', 'Найдена рамка листа, лист повёрнут и приведён к сетке 200 dpi по полям ГОСТ, формат и масштаб определены по рамке.'],
+    3: ['классы пикселей', 'masks', 'Нейросеть FPN делит каждый пиксель на 8 классов. Включайте классы и меняйте прозрачность.'],
+    4: ['векторы', 'vectors', 'Скелет → граф → отрезки, дуги и окружности; цвет — тип линии из масок, текст отдан OCR.'],
+    5: ['DXF', 'dxf', 'Записанный DXF: слои по типам линий, надписи TEXT, размеры DIMENSION, штриховка HATCH.']
+  };
   const NOTES = {
-    '003': 'Кронштейн: контур, отверстия, осевая и штриховая линии, размеры, знаки шероховатости и основная надпись переходят в DXF.',
-    '017': 'Лист с крупным пятном: деталь и штамп читаются, но край пятна частично попал в DXF ложными линиями, штриховка узкой детали записана неточно.'
+    '003': 'Кронштейн, A3: 41 примитив, 19 надписей, 34 знака и стрелки. Контур, отверстия, осевая и штриховая, знаки шероховатости и штамп переходят в DXF.',
+    '017': 'Лист с пятном, A4: 81 примитив, 15 надписей, 1 размер собран. Деталь и штамп читаются, но край пятна частично попал в DXF ложными линиями — это из ограничений.'
   };
   const layers = {};
   for (const [k] of CLS) {
@@ -516,9 +566,15 @@ code { font-size: .9em; }
     b.onclick = () => { on.has(k) ? on.delete(k) : on.add(k); b.setAttribute('aria-pressed', String(on.has(k))); draw(); };
     box.appendChild(b);
   }
+  const stepInput = document.getElementById('vStep');
   function draw() {
-    const masks = view === 'masks';
-    baseImg.src = `img/viewer/${sheet}_${masks ? 'clean' : view}.jpg`;
+    const [name, img, text] = STEPS[step];
+    const masks = img === 'masks';
+    document.getElementById('vStepName').textContent = step + '. ' + name;
+    document.getElementById('vStepText').textContent = text;
+    stepInput.value = step;
+    document.querySelectorAll('#vView button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === step)));
+    baseImg.src = `img/viewer/${sheet}_${masks ? 'clean' : img}.jpg`;
     baseImg.style.opacity = masks ? 0.55 : 1;
     for (const [k] of CLS) {
       const im = layers[k];
@@ -530,8 +586,63 @@ code { font-size: .9em; }
   }
   alpha.addEventListener('input', () => { alphaV.textContent = alpha.value; draw(); });
   seg('vSheet', v => { sheet = v; draw(); });
-  seg('vView', v => { view = v; draw(); });
+  seg('vView', v => { step = +v; draw(); });
+  stepInput.addEventListener('input', () => { step = +stepInput.value; draw(); });
   draw();
+
+
+  // прогоны сегментации
+  const RUNS = [
+    ['U-Net, seed 1', .756, 57], ['U-Net, seed 2', .755, 58], ['U-Net, ResNet18', .754, 57], ['U-Net++', .758, 92],
+    ['FPN', .766, 55], ['FPN, seed 2', .760, 50], ['DeepLabV3+', .765, 57], ['DeepLabV3+, seed 2', .773, 51],
+    ['Skeleton Recall Loss 1', .736, 68], ['Skeleton Recall Loss 0,3', .753, 69], ['вес штриховых 100', .773, 57],
+    ['вес штриховых, выборка 2', .746, 56], ['масштаб 0,75–1,1', .744, 63], ['масштаб 0,6–1,2', .738, 62],
+    ['FPN, масштаб 0,8–1,05 ★', .767, 55], ['FPN + растры заказчика', .774, 90], ['DeepLabV3+ + растры заказчика', .781, 90]];
+  let rKey = 'f1';
+  const runsChart = () => ({
+    type: 'bar',
+    data: { labels: RUNS.map(r => r[0]), datasets: [{ data: RUNS.map(r => rKey === 'f1' ? r[1] : r[2]),
+      backgroundColor: RUNS.map(r => r[0].includes('★') ? S(2) : S(1)), ...bar }] },
+    options: base({
+      plugins: { ...base().plugins, tooltip: { ...base().plugins.tooltip, callbacks: {
+        label: c => { const r = RUNS[c.dataIndex]; return `F1 ${fmt(r[1], 3)}, ${r[2]} мин`; } } } },
+      scales: { x: { ...base().scales.x, ticks: { color: css('--muted'), autoSkip: false, maxRotation: 60, minRotation: 45, font: { size: 11 } } },
+        y: rKey === 'f1' ? { ...base().scales.y, min: 0.72, max: 0.79, ticks: { color: css('--muted'), callback: v => fmt(v, 2) } }
+                         : { ...base().scales.y, min: 0, max: 100, ticks: { color: css('--muted'), callback: v => v + ' мин' } } } })
+  });
+  make('cRuns', runsChart);
+  seg('rSel', v => { rKey = v; charts.cRuns.destroy(); charts.cRuns = new Chart(document.getElementById('cRuns'), runsChart()); });
+
+  // задачи
+  const TASKS = {"burn":[["2026-10-14",61,2],["2026-10-15",61,2],["2026-10-16",61,3],["2026-10-17",66,7],["2026-10-18",67,11],["2026-10-19",68,13],["2026-10-20",74,15],["2026-10-21",75,15],["2026-10-22",75,18],["2026-10-23",75,18],["2026-10-24",75,21],["2026-10-25",75,21],["2026-10-26",75,21],["2026-10-27",75,21],["2026-10-28",75,21],["2026-10-29",75,22],["2026-10-30",77,22],["2026-10-31",77,22],["2026-11-01",78,27],["2026-11-02",81,38],["2026-11-03",83,43],["2026-11-04",86,44],["2026-11-05",86,44],["2026-11-06",86,44],["2026-11-07",91,53],["2026-11-08",91,62],["2026-11-09",98,69],["2026-11-10",98,70]],"issues":[[157,"[Данные] [1.22.1] Ручная проверка эталонов",1,-1,"2026-11-02"],[158,"[Данные] [1.22.2]  Прогон всех данных",1,-1,"2026-11-02"],[2,"[0.1] Приватный репозиторий, первый коммит, памятка по правилам",1,0,"2026-10-14"],[3,"[0.2] Добавить участников и заполнить CODEOWNERS",1,0,"2026-10-17"],[4,"[0.3] Метки, вехи и задачи из плана",1,0,"2026-10-14"],[5,"[Орг] [0.4] Общая папка с данными (NDA отменён)",1,0,"2026-10-20"],[6,"[Орг] [0.5] Окружение у каждого участника",1,0,"2026-11-02"],[7,"[0.6] Получить данные и разобрать структуру",1,0,"2026-10-16"],[8,"[1.1] types.py по контракту данных 0.4",1,1,"2026-10-17"],[9,"[1.2] config.py и configs/default.yaml",1,1,"2026-10-17"],[10,"[DXF] [1.3] dxf.write: примитивы, слои, типы линий, мм, AC1021",1,1,"2026-10-22"],[11,"[DXF] [1.4] dxf.read: эталонный DXF → DrawingIR",1,1,"2026-10-22"],[12,"[DXF] [1.5] Разбор эталонов: масштаб, размеры, штриховка, знаки, слои",1,1,"2026-10-20"],[13,"[Данные] [1.6] Рендер DXF в растр с заданным DPI",1,1,"2026-10-24"],[14,"[Данные] [1.7] Маски классов пикселей из DXF",1,1,"2026-10-24"],[15,"[Данные] [1.8] Генератор дефектов скана",1,1,"2026-10-24"],[16,"[Данные] [1.8a] Процедурный генератор деталей шире пяти типов",1,1,"2026-10-19"],[17,"[Данные] [1.9] Разбиения configs/splits.yaml",1,1,"2026-11-02"],[18,"[Предобр] [1.10] ingest: PDF/JPEG/PNG → RasterPage",1,1,"2026-11-01"],[19,"[1.11] evaluation: сопоставление примитивов и отчёт",1,1,"2026-10-18"],[20,"[1.12] pipeline.py и CLI с заглушками этапов",1,1,"2026-10-17"],[21,"[Веб] [1.13] Веб-заглушка: загрузка → DXF, /health",1,1,"2026-11-03"],[22,"[1.14] Релиз v0.1.0, автодеплой на VPS, доступ через SSH-туннель",1,1,"2026-10-18"],[23,"[OCR] [1.15] Эксперимент: OCR размеров и основной надписи",1,1,"2026-11-01"],[81,"[ML] [1.16] Каркас обучения сегментации на реальных парах",1,1,"2026-11-07"],[82,"[1.17] Хранение весов: models/manifest.json и загрузчик",1,1,"2026-10-18"],[105,"[ML][Метрики] [1.18] IoU и F1 по классам пикселей",1,1,"2026-10-19"],[112,"[Орг] [1.19] Обзор публикаций и моделей, схема ансамбля",1,1,"2026-11-01"],[114,"[Данные] [1.21] Данные до 500+ чертежей: источники и первые наборы",1,1,"2026-11-07"],[122,"[Данные] [1.22] Проверка эталонов: DXF поверх PDF по всем реальным парам",1,1,"2026-10-29"],[113,"[ML][OCR] [1.20] Эксперимент: локальная VLM (Qwen3-VL) на растре",0,1,""],[24,"[Предобр] [2.1] Выравнивание по рамке, рамка, область основной надписи",1,2,"2026-11-01"],[25,"[Предобр][OCR] [2.2] Формат листа и масштаб",1,2,"2026-11-07"],[26,"[Предобр] [2.3] Эксперимент: бинаризация тонких линий",1,2,"2026-11-09"],[28,"[Геом] [2.5] Baseline: HoughLinesP + HoughCircles",1,2,"2026-11-02"],[29,"[Геом] [2.6] Скелет → граф → отрезки и дуги",1,2,"2026-11-02"],[30,"[Геом] [2.7] Эксперимент: LSD / EDLines / скелет",1,2,"2026-11-03"],[31,"[Геом] [2.8] Слияние штрихов, тип и толщина линии",1,2,"2026-11-01"],[32,"[ML] [2.9] U-Net классов пикселей на масках из DXF",1,2,"2026-11-07"],[34,"[Метрики] [2.11] Метрики пайплайна к чек-поинту",1,2,"2026-11-02"],[35,"[2.12] Отладочный режим: картинки по этапам",1,2,"2026-10-18"],[41,"[DXF] [3.5] Запись DIMENSION в DXF",1,2,"2026-11-03"],[51,"[DXF] [3.10a] Атрибуты блока основной надписи",1,2,"2026-11-03"],[83,"[ML] [2.14] Инференс сегментации на CPU: ONNX, тайлы, замер времени",1,2,"2026-11-02"],[84,"[ML] [2.15] Классическая сегментация без нейросети",1,2,"2026-11-09"],[85,"[ML] [2.16] Эксперимент: поиск знаков шероховатости",1,2,"2026-11-08"],[99,"[Метрики] [1.11a] Отчёт метрик на real-val и команда scan2dxf evaluate",1,2,"2026-11-02"],[115,"[Метрики] [2.17] Критические ошибки класса и уровни сложности листов",1,2,"2026-11-07"],[168,"real_3: DXF-«альбомы» — деталь и 17 чужих листов в одном файле",1,2,"2026-11-02"],[178,"[Данные] [1.7.1] Совмещение масок из DXF с растрами заказчика (jpeg, aged)",1,2,"2026-11-07"],[186,"[Данные] Партия политеха: дрон и рохля — DXF из КОМПАС → real_9",1,2,"2026-11-03"],[189,"[Геом] [2.6] Скелет: лишние дуги и концы скруглений по касанию",1,2,"2026-11-04"],[198,"[Геом] [2.6] Мелкие отверстия Ø < 5 мм на бумаге теряются в скелете",1,2,"2026-11-07"],[199,"[Предобр] [2.2] Масштаб по рамке даёт неправдоподобный DPI: A4 при 96 dpi читается как A1",1,2,"2026-11-09"],[205,"[Данные] [2.10a] Эталонные маски для настоящих сканов и F1 U-Net на них",1,2,"2026-11-07"],[27,"[Предобр] [2.4] Удаление шума",0,2,""],[36,"[Орг] [2.13] Материалы чек-поинта 11.11",0,2,""],[206,"[Геом] [2.6b] Скелет: концы дуг и скруглений не совпадают с эталоном",0,2,""],[33,"[ML] [2.10] Сравнение классической и U-Net сегментации",1,3,"2026-11-08"],[37,"[OCR] [3.1] OCR чисел размеров",1,3,"2026-11-08"],[38,"[OCR] [3.2] Постобработка Ø, R, ±, °, допусков",1,3,"2026-11-08"],[39,"[ML][OCR] [3.3] Стрелки и размерные линии",1,3,"2026-11-08"],[40,"[OCR] [3.4] Сборка Dimension",1,3,"2026-11-09"],[46,"[DXF][Геом] [3.6] Штриховка → HATCH",1,3,"2026-11-02"],[53,"[Инфра] [3.12] MLflow на сервере",1,3,"2026-11-09"],[54,"[Метрики] [3.13] Устойчивость к пятнам, обрывам, наклону",1,3,"2026-11-07"],[218,"[ML] [2.10b] Основная и тонкая линия на сканах под углом: U-Net отдаёт контур в тонкие",1,3,"2026-11-08"],[221,"[Геом] [2.8a] Контур принимается за осевую (MAIN → AXIS) — главная критическая ошибка",1,3,"2026-11-08"],[223,"[Данные] Три пары с расхождением растра и эталона: real_6 (2), real_3/гайка2",1,3,"2026-11-08"],[42,"[OCR] [3.5a] Привязка размеров к точкам геометрии",0,3,""],[43,"[Огр] [3.5b] constrain: решатель ограничений",0,3,""],[44,"[Огр] [3.5c] constrain: противоречивые размеры",0,3,""],[45,"[Метрики] [3.5d] Метрики согласованности геометрии с размерами",0,3,""],[47,"[ML] [3.7] Знаки шероховатости",0,3,""],[48,"[ML] [3.8] Рамки допусков формы и расположения, базы",0,3,""],[49,"[ML][OCR] [3.9] Сечения и виды",0,3,""],[50,"[OCR] [3.10] Основная надпись: наименование, номер документа, материал",0,3,""],[52,"[OCR] [3.11] Рукописные ФИО исполнителей",0,3,""],[124,"[ML] [3.14] Эксперимент: ResNet50 + авторегрессионный декодер примитивов",0,3,""],[210,"[OCR] [2.2b] Масштаб листа в полном пайплайне после подключения OCR",0,3,""],[219,"[ML] [2.9a] Штриховые линии (HIDDEN): U-Net их не находит",0,3,""],[220,"[Предобр] [3.13a] Наклон листа 1,5–3° снижает покрытие",0,3,""],[239,"[Предобр] [3.13b] Фото: рамка листа не находится",0,3,""],[240,"[OCR] [3.4_1] Полнота размеров: OCR находит 66 % надписей",0,3,""],[241,"[ML] [2.10c] Сканы под углом (scan_2): класс линии 0,69",0,3,""],[244,"[OCR] [3.4_2] Сборка размеров без обязательной пары стрелок: полнота 12 %",0,3,""],[56,"[Метрики] [4.2] Замер времени обработки листа",1,4,"2026-11-09"],[58,"[DXF] [4.4] DXF → DWG (бонус)",1,4,"2026-10-22"],[59,"[Инфра] [4.5] Пакетная обработка папки",1,4,"2026-11-08"],[242,"[Метрики] [4.2a] Время на лист на GPU (Kaggle)",1,4,"2026-11-09"],[252,"[Предобр] [4.2c] Бинаризация Adaptive вместо Sauvola: −1 с на лист",1,4,"2026-11-10"],[55,"[Инфра] [4.1] Офлайн-комплект поставки CPU и GPU",0,4,""],[57,"[Орг] [4.3] Внутренняя экспертная оценка",0,4,""],[60,"[Орг] [4.6] README для заказчика",0,4,""],[61,"[Метрики] [4.7] Итоговый отчёт метрик и ограничений",0,4,""],[62,"[Орг] [4.8] Презентация и демо",0,4,""],[136,"[Веб] [4.4a] Фронтенд для #58: выбор формата DXF/DWG в интерфейсе",0,4,""],[243,"[Геом] [4.2b] Векторизация на листах A1–A0: 8–39 минут на лист",0,4,""]]};
+  TASKS.issues.sort((x, y) => (x[3] < 0) - (y[3] < 0));
+  const STAGE = ['0. Фундамент', '1. Данные и метрики', '2. Геометрия', '3. Размеры, знаки, текст', '4. Поставка и защита'];
+  make('cBurn', () => ({
+    type: 'line',
+    data: { labels: TASKS.burn.map(r => r[0].slice(8, 10) + '.' + r[0].slice(5, 7)),
+      datasets: [
+        { label: 'заведено', data: TASKS.burn.map(r => r[1]), borderColor: css('--faint'), backgroundColor: css('--faint'), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, stepped: true },
+        { label: 'закрыто', data: TASKS.burn.map(r => r[2]), borderColor: S(1), backgroundColor: S(1), borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, stepped: true }] },
+    options: base({ interaction: { mode: 'index', intersect: false },
+      plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' } },
+      scales: { x: { ...base().scales.x, ticks: { color: css('--muted'), maxTicksLimit: 10 } }, y: { ...base().scales.y, min: 0 } } })
+  }));
+  let tkStage = 'all', tkState = 'all';
+  const tbody = document.querySelector('#tkTable tbody'), tkQ = document.getElementById('tkQ');
+  function esc(t) { return t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+  function drawTasks() {
+    const q = tkQ.value.trim().toLowerCase();
+    const rows = TASKS.issues.filter(([n, t, done, st]) =>
+      (tkStage === 'all' || String(st) === tkStage) && (tkState === 'all' || String(done) === tkState) && (!q || t.toLowerCase().includes(q) || String(n) === q));
+    tbody.innerHTML = rows.map(([n, t, done, st, cl]) =>
+      `<tr><td class="n">${n}</td><td>${esc(t)}</td><td>${st >= 0 ? STAGE[st] : '—'}</td><td class="${done ? 'done' : 'part'}">${done ? 'закрыта ' + cl.slice(8, 10) + '.' + cl.slice(5, 7) : 'открыта'}</td></tr>`).join('');
+    const closed = rows.filter(r => r[2]).length;
+    document.getElementById('tkCount').textContent = `Показано ${rows.length}: закрыто ${closed}, открыто ${rows.length - closed}`;
+  }
+  seg('tkStage', v => { tkStage = v; drawTasks(); });
+  seg('tkState', v => { tkState = v; drawTasks(); });
+  tkQ.addEventListener('input', drawTasks);
+  drawTasks();
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rebuildAll);
 })();
