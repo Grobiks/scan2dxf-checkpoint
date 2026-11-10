@@ -252,14 +252,14 @@ code { font-size: .9em; }
   <div class="card"><h3>Выбор OCR</h3><p class="sub">113 листов, 1582 размера и 197 полей штампа. Справа вверху — лучше и быстрее</p>
   <div class="controls"><div class="seg" id="oSel"><button aria-pressed="true" data-v="dims">размеры</button><button aria-pressed="false" data-v="stamp">штамп</button></div></div>
   <div class="chart"><canvas id="cOcr"></canvas></div>
-  <p class="note">Выбран RapidOCR с правилами для Ø и °: лучший по размерам, 6 с на лист на CPU, Apache-2.0.</p></div>
+  <p class="note">Выбран RapidOCR с правилами для Ø и °: лучший по размерам, 6 с на лист на CPU, Apache-2.0. На всех 89 листах real-val он находит 84 % размерных надписей, числа верны у 91 % найденных.</p></div>
   <div class="card"><h3>Второй распознаватель для трудных надписей</h3><p class="sub">100 вырезок размеров, точное совпадение</p>
   <div class="chart"><canvas id="cVlm"></canvas></div>
   <p class="note">Qwen3-VL-4B не лучше Xiaomi-OCR-0 при модели в 5 раз больше — для допусков и посадок берём Xiaomi на этапе 3.</p></div>
 </div>
-<div class="card"><h3>Где теряются размеры</h3><p class="sub">14 листов val, 131 прямой размер: доля размеров, дошедших до шага</p>
+<div class="card"><h3>Где теряются размеры</h3><p class="sub">Все листы real-val: 1127 надписей с числами для OCR, 1152 размера для сборки. Доля от эталона, дошедшая до шага</p>
   <div class="chart"><canvas id="cFunnel"></canvas></div>
-  <p class="note">Главная потеря — пара стрелок у размерной линии: после исправления поиска стрелок у толстых линий (09.11) собрано вдвое больше, точность 75 → 86 %. Дальше — сборка без обязательной пары стрелок, диаметры и радиусы.</p>
+  <p class="note">Прежняя метрика искала ответ в круге 3 мм вокруг точки надписи, а в DXF эта точка часто стоит на размерной линии, на 3–4 мм от текста. Теперь допуск 3 мм вдоль линии и 6 мм поперёк: из собранных размеров 98 % совпадают с эталоном (было 88 %). Главная потеря — сама сборка: она требует пару стрелок у размерной линии, диаметры и радиусы пока не собираются. Это следующий шаг.</p>
 </div>
 </section>
 
@@ -489,10 +489,10 @@ code { font-size: .9em; }
 
   make('cFunnel', () => ({
     type: 'bar',
-    data: { labels: ['надпись найдена OCR', 'число прочитано верно', 'размер собран'],
+    data: { labels: ['надпись найдена OCR', 'число прочитано верно', 'размер собран, номинал верен', 'верны номинал и измерение'],
       datasets: [
-        { label: 'до 09.11', data: [69, 63, 16], backgroundColor: css('--faint'), ...bar },
-        { label: 'после исправления стрелок', data: [69, 63, 32], backgroundColor: S(1), ...bar }] },
+        { label: 'круг 3 мм (прежняя метрика)', data: [66, 61, 20, 19], backgroundColor: css('--faint'), ...bar },
+        { label: 'по оси размерной линии', data: [84, 76, 22, 21], backgroundColor: S(1), ...bar }] },
     options: base({ indexAxis: 'y',
       plugins: { ...base().plugins, legend: { ...base().plugins.legend, display: true, position: 'top', align: 'start' },
         tooltip: { ...base().plugins.tooltip, callbacks: { label: c => c.dataset.label + ': ' + c.raw + ' %' } } },
